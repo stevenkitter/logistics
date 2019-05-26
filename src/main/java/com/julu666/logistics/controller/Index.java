@@ -13,6 +13,7 @@ import com.julu666.logistics.json.PackageStatus;
 import com.julu666.logistics.repository.CompanyRepository;
 import com.julu666.logistics.repository.PackageRepository;
 import com.julu666.logistics.repository.TransitRepository;
+import com.sun.org.apache.xpath.internal.operations.Mod;
 import okhttp3.OkHttpClient;
 import okhttp3.logging.HttpLoggingInterceptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -25,13 +26,14 @@ import retrofit2.Call;
 import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.transaction.Transactional;
 import java.io.IOException;
-import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.sql.Timestamp;
 import java.util.*;
 
 
@@ -50,30 +52,42 @@ public class Index {
     private static final String url  = "https://h5api.m.taobao.com/h5/mtop.cnwireless.cnlogisticdetailservice.wapquerylogisticpackagebymailno/1.0/?jsv=2.4.2&appKey=12574478&t=1558689823624&sign=a4a07c85486c6d429015818e430748e7&api=mtop.cnwireless.CNLogisticDetailService.wapqueryLogisticPackageByMailNo&AntiCreep=true&v=1.0&timeout=5000&type=originaljson&dataType=json&c=066b300b1b1d4cf8c081cc0e6de2c56e_1558693104754%3B1ba7e340e2a388bb022c62fe7568e10f&data=%7B%22mailNo%22%3A%22805979264794805297%22%2C%22cpCode%22%3A%22%22%7D";
 
     @GetMapping("/")
-    public String index() {
-        System.out.print("xx");
+    public String index(HttpServletRequest request, Model model) {
+
+        Cookie[] cookies = request.getCookies();
+        if (cookies != null) {
+            for(Cookie cookie : cookies) {
+                if (cookie.getName().equals("code")){
+                    String code = cookie.getValue();
+                    model.addAttribute("code", code);
+                }
+            }
+        }
         return "index";
 
     }
 
 
     @PostMapping("/query")
-    public String query(@RequestParam("code") String code, Model model) {
+    public String query(HttpServletResponse response, @RequestParam("code") String code, Model model) {
 
         if (code.length() < 5) {
 //            model.addAttribute("msg", "查询不到此物流信息");
             model.addAttribute("msg", "单号太短");
             return "index";
         }
+        Cookie cookie = new Cookie("code", code);
+        response.addCookie(cookie);
 
-
+        model.addAttribute("code", code);
 
         Optional<Package> optionalPackage = packageRepository.findByMailNo(code);
         if (optionalPackage.isPresent()) {
             model.addAttribute("package", optionalPackage.get());
         } else {
             try {
-                CNApiJSON json = request(code);
+                CNApiJSON
+                        json = request(code);
                 if (json.getData().getBuyerUserId() < 0) {
                     model.addAttribute("msg", "无此单号");
 

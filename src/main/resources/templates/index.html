@@ -90,7 +90,7 @@
             </div>
             <div class="col-10 main" >
                 <form class="input-group mb-3" action="#" th:action="@{/query}"  method="post">
-                    <input type="text" name="code" class="form-control" placeholder="单号" aria-label="物流单号" aria-describedby="button-addon2">
+                    <input type="text" name="code" th:value="${code}" class="form-control" placeholder="单号" aria-label="物流单号" aria-describedby="button-addon2">
                     <div class="input-group-append">
                         <button class="btn btn-outline-secondary" type="submit" id="button-addon2">查询</button>
                     </div>

@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>物流查询毕业设计</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/css/bootstrap.min.css" integrity="sha384-ggOyR0iXCbMQv3Xipma34MD+dH/1fQ784/j6cY/iJTQUOhcWr7x9JvoRxT2MZw1T" crossorigin="anonymous">
+    <style>
+        .main {
+            margin-top: 200px;
+        }
+
+        .company {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            justify-content: center;
+        }
+        .company img {
+            margin-right: 30px;
+        }
+        p {
+            margin: 0 0 0 10px;
+        }
+        .transit {
+            display: flex;
+            flex-direction: row;
+            align-items: center;
+            margin-top: 20px;
+        }
+        .transit img {
+            width: 15px;
+            height: 15px;
+        }
+        .package-detail {
+            margin: -9px 0 0 12px;
+            padding: 0 0 0 10px;
+            list-style: none;
+            line-height: 30px;
+            font-size: 12px;
+        }
+        /*.package-detail li {*/
+        /*    border-left: 1px solid #d9d9d9;*/
+        /*}*/
+        .package-detail li:before {
+            content: '';
+            border: 3px solid #fff;
+            background-color: #d9d9d9;
+            display: inline-block;
+            width: 5px;
+            height: 5px;
+            border-radius: 5px;
+            margin-left: -6px;
+            margin-right: 10px;
+        }
+        .package-detail .latest:before {
+            background-color: #fe4300;
+            border-color: #f8e9e4;
+        }
+        .package-box {
+            position: relative;
+            overflow: hidden;
+        }
+        .input-group {
+            margin-bottom: 20px;
+        }
+        .info {
+            margin-top: 20px;
+            margin-bottom: 200px;
+        }
+        .container {
+            padding: 20px;
+        }
+    </style>
+</head>
+<body>
+
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <a class="navbar-brand" href="/">物流查询毕业设计</a>
+    </nav>
+
+    <div class="container">
+        <div class="alert alert-danger" role="alert" th:text="${msg}" th:if="${not #strings.isEmpty(msg)}">
+            A simple primary alert—check it out!
+        </div>
+        <div class="row">
+
+            <div class="col">
+
+            </div>
+            <div class="col-10 main" >
+                <form class="input-group mb-3" action="#" th:action="@{/query}"  method="post">
+                    <input type="text" name="code" class="form-control" placeholder="单号" aria-label="物流单号" aria-describedby="button-addon2">
+                    <div class="input-group-append">
+                        <button class="btn btn-outline-secondary" type="submit" id="button-addon2">查询</button>
+                    </div>
+                </form>
+                <div class="company" th:if="${package}">
+                    <img th:src="${package.getCompany().getIconUrl102x38()}">
+                    <div class="right">
+                        <p th:text="${package.getCompany().getCompanyName()}"></p>
+                        <p th:text="${package.getCompany().getWebUrl()}"></p>
+                        <p th:text="${'查询电话: ' + package.getCompany().getServiceTel()}"></p>
+                    </div>
+                </div>
+                <div class="info" th:if="${package}">
+                    <h5>物流跟踪信息</h5>
+                    <div class="package-box">
+                        <ul class="package-detail">
+                            <li class="transit" th:classappend="${iter.index == iter.size - 1 ? 'latest':''}" th:each="transit,iter : ${package.getTransits()}">
+                                <img th:src="${transit.getSectionIcon()}">
+                                <p th:text="${transit.getTime()}"></p>
+                                <p th:text="${transit.getMessage()}"></p>
+                            </li>
+                        </ul>
+                    </div>
+
+
+                </div>
+
+            </div>
+            <div class="col">
+
+            </div>
+        </div>
+
+
+
+    </div>
+
+    <script src="https://code.jquery.com/jquery-3.3.1.slim.min.js" integrity="sha384-q8i/X+965DzO0rT7abK41JStQIAqVgRVzpbzo5smXKp4YfRvH+8abtTE1Pi6jizo" crossorigin="anonymous"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/popper.js/1.14.7/umd/popper.min.js" integrity="sha384-UO2eT0CpHqdSJQ6hJty5KVphtPhzWj9WO1clHTMGa3JDZwrnQq4sF86dIHNDz0W1" crossorigin="anonymous"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.3.1/js/bootstrap.min.js" integrity="sha384-JjSmVgyd0p3pXB1rRibZUAYoIIy6OrQ6VrjIEaFf/nJGzIxFDsf4x0xIM+B07jRM" crossorigin="anonymous"></script>
+</body>
+</html>

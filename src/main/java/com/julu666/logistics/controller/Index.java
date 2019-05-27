@@ -57,7 +57,6 @@ public class Index {
     private static final String cookieUrl  = "https://h5api.m.taobao.com/h5/mtop.cnwireless.cncainiaoappservice.getlogisticscompanylist/1.0/?jsv=2.4.2&appKey=12574478&t=1558942991925&sign=e307e2e4d42a589720bda5113ba10aab&api=mtop.cnwireless.CNCainiaoAppService.getLogisticsCompanyList&v=1.0&AntiCreep=true&type=originaljson&dataType=json&c=984f66cd90ce2456af181ffe11915138_1558950171472%3B0c59af5606a0a1e3ff5d18a1649c1cd2&data=%7B%22version%22%3A0%2C%22cptype%22%3A%22all%22%7D";
     @GetMapping("/")
     public String index(HttpServletRequest request, Model model) {
-
         Cookie[] cookies = request.getCookies();
         if (cookies != null) {
             for(Cookie cookie : cookies) {
@@ -68,27 +67,36 @@ public class Index {
             }
         }
         return "index";
-
     }
 
 
     @PostMapping("/query")
-    public String query(HttpServletResponse response, @RequestParam("code") String code, Model model) {
+    public String query(HttpServletResponse response, @RequestParam("code")final String code, Model model) throws IOException {
 
         if (code.length() < 5) {
 //            model.addAttribute("msg", "查询不到此物流信息");
             model.addAttribute("msg", "单号太短");
             return "index";
         }
-        code = code.replace(" ", "");
-        Cookie cookie = new Cookie("code", code);
+        String newCode = code.replace(" ", "");
+        Cookie cookie = new Cookie("code", newCode);
         response.addCookie(cookie);
 
         model.addAttribute("code", code);
 
         Optional<Package> optionalPackage = packageRepository.findByMailNo(code);
         if (optionalPackage.isPresent()) {
+            //TODO 更新数据
             model.addAttribute("package", optionalPackage.get());
+            new Thread(()->{
+//                final String code1 = code;
+                try {
+                    CNApiJSON json = request(code);
+                    saveToData(json);
+                } catch (IOException ex) {
+                    ex.printStackTrace();
+                }
+            }).start();
         } else {
             try {
                 CNApiJSON
@@ -158,11 +166,13 @@ public class Index {
         HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor();
         interceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
         OkHttpClient client = new OkHttpClient.Builder().addInterceptor(interceptor).build();
+
         Retrofit retrofit = new Retrofit.Builder()
                 .baseUrl("https://h5api.m.taobao.com")
                 .addConverterFactory(GsonConverterFactory.create())
                 .client(client)
                 .build();
+
         Service service = retrofit.create(Service.class);
         Map<String, String> param = new HashMap<>();
 
@@ -196,6 +206,7 @@ public class Index {
         return api;
     }
 
+    // 抓包签名
     private String sign(String token, String now ,String appKey, String data) {
         String signStr = token + "&" + now + "&" + appKey + "&" + data;
         MessageDigest md = null;

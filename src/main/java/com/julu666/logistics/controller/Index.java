@@ -13,7 +13,7 @@ import com.julu666.logistics.json.PackageStatus;
 import com.julu666.logistics.repository.CompanyRepository;
 import com.julu666.logistics.repository.PackageRepository;
 import com.julu666.logistics.repository.TransitRepository;
-import com.sun.org.apache.xpath.internal.operations.Mod;
+
 import okhttp3.OkHttpClient;
 import okhttp3.logging.HttpLoggingInterceptor;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,10 +31,14 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.transaction.Transactional;
 import java.io.IOException;
+
 import java.math.BigInteger;
+
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 @Controller
@@ -50,7 +54,7 @@ public class Index {
     private TransitRepository transitRepository;
 
     private static final String url  = "https://h5api.m.taobao.com/h5/mtop.cnwireless.cnlogisticdetailservice.wapquerylogisticpackagebymailno/1.0/?jsv=2.4.2&appKey=12574478&t=1558689823624&sign=a4a07c85486c6d429015818e430748e7&api=mtop.cnwireless.CNLogisticDetailService.wapqueryLogisticPackageByMailNo&AntiCreep=true&v=1.0&timeout=5000&type=originaljson&dataType=json&c=066b300b1b1d4cf8c081cc0e6de2c56e_1558693104754%3B1ba7e340e2a388bb022c62fe7568e10f&data=%7B%22mailNo%22%3A%22805979264794805297%22%2C%22cpCode%22%3A%22%22%7D";
-
+    private static final String cookieUrl  = "https://h5api.m.taobao.com/h5/mtop.cnwireless.cncainiaoappservice.getlogisticscompanylist/1.0/?jsv=2.4.2&appKey=12574478&t=1558942991925&sign=e307e2e4d42a589720bda5113ba10aab&api=mtop.cnwireless.CNCainiaoAppService.getLogisticsCompanyList&v=1.0&AntiCreep=true&type=originaljson&dataType=json&c=984f66cd90ce2456af181ffe11915138_1558950171472%3B0c59af5606a0a1e3ff5d18a1649c1cd2&data=%7B%22version%22%3A0%2C%22cptype%22%3A%22all%22%7D";
     @GetMapping("/")
     public String index(HttpServletRequest request, Model model) {
 
@@ -76,6 +80,7 @@ public class Index {
             model.addAttribute("msg", "单号太短");
             return "index";
         }
+        code = code.replace(" ", "");
         Cookie cookie = new Cookie("code", code);
         response.addCookie(cookie);
 
@@ -88,19 +93,29 @@ public class Index {
             try {
                 CNApiJSON
                         json = request(code);
-                if (json.getData().getBuyerUserId() < 0) {
-                    model.addAttribute("msg", "无此单号");
-
+                if (json.getData().getBuyerUserId() == null || json.getData().getBuyerUserId() < 0) {
+                    model.addAttribute("msg", "爬虫数据异常");
                     return "index";
                 }
-                if (json.getRet().size() > 1 || json.getApi() == null){
-                    model.addAttribute("msg", "爬虫挂了，有防爬虫机制～");
+                if (json.getRet().size() == 0) {
+                    model.addAttribute("msg", "爬虫数据异常");
+                    return "index";
+                }
+                String ret = json.getRet().get(0);
+                String[] res = ret.split("::");
+                if (res.length == 0) {
+                    model.addAttribute("msg", "爬虫数据异常");
+                    return "index";
+                }
+                if (!res[0].equals("SUCCESS")){
+                    model.addAttribute("msg", res[1]);
+                    return "index";
                 } else {
                     //TODO 开线程干活 一边给页面值 一边写入数据库
-                    new Thread(()->{
-                        Package p = jsonToPackage(json);
-                        model.addAttribute("package", p);
-                    }).start();
+
+                    Package p = jsonToPackage(json);
+                    model.addAttribute("package", p);
+
                     new Thread(()->
                         saveToData(json)
                     ).start();
@@ -120,6 +135,26 @@ public class Index {
     }
 
     public CNApiJSON request(String code) throws IOException {
+
+        String tokenStr = "";
+        String tokenEnc = "";
+
+        Pattern _m_h5_tk = Pattern.compile("\\b_m_h5_tk=([^;]+)");
+        Matcher m =_m_h5_tk.matcher(Const.cookiess);
+        if (m.find()) {
+            tokenStr = m.group(0);
+            String[] s = tokenStr.split("=");
+            tokenStr = s[1];
+        }
+
+        Pattern _m_h5_tk_enc = Pattern.compile("\\b_m_h5_tk_enc=([^;]+)");
+        Matcher mm =_m_h5_tk_enc.matcher(Const.cookiess);
+        if (mm.find()) {
+            tokenEnc = mm.group(0);
+            String[] s = tokenEnc.split("=");
+            tokenEnc = s[1];
+        }
+
         HttpLoggingInterceptor interceptor = new HttpLoggingInterceptor();
         interceptor.setLevel(HttpLoggingInterceptor.Level.BODY);
         OkHttpClient client = new OkHttpClient.Builder().addInterceptor(interceptor).build();
@@ -137,9 +172,11 @@ public class Index {
         mainJson.setCpCode("");
         Gson j = new Gson();
         String mailJ = j.toJson(mainJson);
-        String token = "242c80532e78b7e51ce3fef0234968c6";
+
+        String[] tks = tokenStr.split("_");
+
         String appKey = "12574478";
-        String sign = sign(token, t, appKey, mailJ);
+        String sign = sign(tks[0], t, appKey, mailJ);
 
         param.put("jsv", "2.4.2");
         param.put("appKey", appKey);
@@ -151,7 +188,7 @@ public class Index {
         param.put("timeout", "5000");
         param.put("type", "originaljson");
         param.put("dataType", "json");
-        param.put("c", "242c80532e78b7e51ce3fef0234968c6_1558889041942;5ca6d0a48f93be7c644a20dbe604dc11");
+        param.put("c", tokenStr + ";" + tokenEnc);
 
         param.put("data", mailJ);
         Call<CNApiJSON> call = service.getRepo(param);
@@ -232,6 +269,7 @@ public class Index {
         company.setCompanyName(json.getData().getCpCompanyInfo().getCompanyName());
         company.setIconUrl16x16(json.getData().getCpCompanyInfo().getIconUrl16x16());
         company.setIconUrl36x36(json.getData().getCpCompanyInfo().getIconUrl36x36());
+        company.setIconUrl102x38(json.getData().getCpCompanyInfo().getIconUrl102x38());
         company.setPinyin(json.getData().getCpCompanyInfo().getPinyin());
         company.setServiceTel(json.getData().getCpCompanyInfo().getServiceTel());
         company.setWebUrl(json.getData().getCpCompanyInfo().getWebUrl());
@@ -251,5 +289,7 @@ public class Index {
         p.setTransits(list);
         return p;
     }
+
+
 }
 

@@ -107,7 +107,7 @@
                     <h5>物流跟踪信息</h5>
                     <div class="package-box">
                         <ul class="package-detail">
-                            <li class="transit" th:classappend="${iter.index == iter.size - 1 ? 'latest':''}" th:each="transit,iter : ${package.getTransits()}">
+                            <li class="transit" th:each="transit,iter : ${package.getTransits()}">
                                 <img th:src="${transit.getSectionIcon()}">
                                 <p th:text="${transit.getTime()}"></p>
                                 <p th:text="${transit.getMessage()}"></p>
